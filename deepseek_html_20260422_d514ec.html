@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+  <title>Прямая валидация в СУБД · ОСС · MSSQL · Целостность данных</title>
+  <!-- Mermaid для схем -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <!-- Шрифт для чистоты -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8fafc;
+      color: #0b1c2e;
+      line-height: 1.6;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 32px;
+      box-shadow: 0 20px 40px -12px rgba(0,20,40,0.12);
+      padding: 2rem 2rem 2.5rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+      color: #0a2942;
+      border-left: 6px solid #1e6f9f;
+      padding-left: 1.5rem;
+    }
+
+    .subhead {
+      font-size: 1.2rem;
+      color: #2c4c6e;
+      margin-bottom: 2rem;
+      font-weight: 400;
+      padding-left: 2.1rem;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 1rem;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin: 2.5rem 0 1rem;
+      color: #1e3a5f;
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      font-weight: 600;
+      font-size: 1.4rem;
+      margin: 2rem 0 0.8rem;
+      color: #1e4460;
+    }
+
+    p {
+      margin-bottom: 1.2rem;
+    }
+
+    .highlight {
+      background: #eef6ff;
+      padding: 0.2rem 0.4rem;
+      border-radius: 8px;
+      font-weight: 500;
+      color: #035e8e;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .card {
+      background: #f9fcff;
+      border-radius: 20px;
+      padding: 1.6rem 1.5rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+      border: 1px solid #e2edf7;
+      transition: transform 0.1s ease;
+    }
+
+    .card:hover {
+      border-color: #b6d4e8;
+      background: #ffffff;
+    }
+
+    .card h4 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+      color: #0b3b5c;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      background: #1e6f9f;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.7rem;
+      border-radius: 30px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .mermaid-wrapper {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 1.8rem 1rem;
+      margin: 2.5rem 0;
+      border: 1px solid #d7e3ec;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.02), 0 8px 20px -8px rgba(20,60,100,0.1);
+      overflow-x: auto;
+    }
+
+    .mermaid-wrapper .title {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+      color: #1a445b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    blockquote {
+      background: #f1f7fd;
+      border-left: 5px solid #1e6f9f;
+      padding: 1.2rem 1.8rem;
+      margin: 1.8rem 0;
+      border-radius: 0 18px 18px 0;
+      font-style: normal;
+      color: #1a3e57;
+      font-weight: 400;
+    }
+
+    ul, ol {
+      padding-left: 1.8rem;
+      margin: 1.2rem 0;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    code {
+      background: #e9f0f7;
+      padding: 0.2rem 0.4rem;
+      border-radius: 8px;
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 0.9em;
+      color: #154a6e;
+    }
+
+    .tech-tag {
+      display: inline-block;
+      background: #ddeeff;
+      border-radius: 16px;
+      padding: 0.2rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #0f486b;
+      margin-right: 0.5rem;
+      margin-bottom: 0.3rem;
+    }
+
+    hr {
+      border: none;
+      border-top: 2px dashed #bdd3e6;
+      margin: 2.5rem 0;
+    }
+
+    .footnote {
+      background: #f3f9ff;
+      border-radius: 18px;
+      padding: 1.5rem 2rem;
+      margin-top: 2.8rem;
+      color: #1a405b;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 1.5rem 1rem;
+      }
+      h1 {
+        font-size: 1.9rem;
+        padding-left: 1rem;
+      }
+      .subhead {
+        padding-left: 1.4rem;
+      }
+      .mermaid-wrapper {
+        padding: 1rem 0.2rem;
+      }
+    }
+
+    /* mermaid tweaks */
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🧬 Прямая валидация<br>в базах данных: ОСС, MSSQL, целостность</h1>
+  <div class="subhead">От распределённых реестров до байтового парсинга — как СУБД гарантирует истину</div>
+  
+  <!-- Введение: ОСС через призму БД -->
+  <p style="font-size:1.1rem">Если рассматривать <strong>ОСС с прямой валидацией</strong> через призму баз данных, процесс превращается в сложную систему синхронизации и верификации между государственными и частными реестрами. Это переход от «декларативного» хранения к <strong>«верифицируемому»</strong>, где каждая запись подтверждается динамической связью с мастер-данными.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>🏛️ Федеративная архитектура</h4>
+      <p><code>ЕСИА</code> (identity), <code>Росреестр (ЕГРН)</code> (права), <code>ГИС ЖКХ</code> — runtime-запросы через API, а не единое хранилище.</p>
+    </div>
+    <div class="card">
+      <h4>🔗 Ссылочная целостность</h4>
+      <p>Голос в БД собрания не может существовать без валидной ссылки на запись в ЕГРН. Каждая транзакция проверяет актуальность собственника.</p>
+    </div>
+    <div class="card">
+      <h4>🧾 Неизменность (Immutability)</h4>
+      <p>Append-only логи, хеширование голосов. Любое изменение — новая транзакция с цифровой подписью; итоговый хеш защищает протокол.</p>
+    </div>
+    <div class="card">
+      <h4>⚙️ Автоматизация кворума</h4>
+      <p>Триггеры и хранимые процедуры пересчитывают сумму долей, а JOIN с реестром всегда возвращает актуальные метры.</p>
+    </div>
+  </div>
+
+  <!-- Глубинная суть прямой валидации -->
+  <h2>📌 Глубинная суть: инкапсуляция, атомарность, независимость</h2>
+  <p>Прямая валидация — это философия недоверия. База данных не верит приложению и проверяет всё сама. Три фундамента:</p>
+  <ul>
+    <li><span class="highlight">Инкапсуляция бизнес-логики в схему</span> — ограничения CHECK, типы данных, FOREIGN KEY вшивают правила прямо в структуру.</li>
+    <li><span class="highlight">Единая точка истины (Single Source of Truth)</span> — валидация на уровне БД защищает данные от любого клиента (web, mobile, скрипты).</li>
+    <li><span class="highlight">Защита от состояния гонки</span> — UNIQUE constraint работает внутри ядра под замком, предотвращая дубликаты даже при параллельных запросах.</li>
+  </ul>
+
+  <blockquote>
+    💡 «Декларативный подход (CHECK price > 0) против императивного: вы описываете, каким должен быть результат, а не как проверять. Это быстрее и надёжнее, потому что оптимизировано на уровне движка СУБД.»
+  </blockquote>
+
+  <!-- MSSQL: углублённая прямая валидация -->
+  <h2>⚡ Microsoft SQL Server — многослойный «бункер» целостности</h2>
+  <p>В MSSQL прямая валидация выходит на новый уровень благодаря интеграции с .NET, строгой типизации и расширенным ограничениям.</p>
+  
+  <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin:1rem 0 1.8rem;">
+    <span class="tech-tag">CHECK + пользовательские функции (UDF)</span>
+    <span class="tech-tag">SQL CLR (валидация на C#)</span>
+    <span class="tech-tag">Типы hierarchyid, geography</span>
+    <span class="tech-tag">INSTEAD OF триггеры</span>
+    <span class="tech-tag">XML Schema Collection</span>
+    <span class="tech-tag">Строгая DRI (FOREIGN KEY)</span>
+  </div>
+
+  <h3>🗺️ Пример: тип geography и байтовый парсинг</h3>
+  <p>Тип <code>geography</code> хранит координаты. Сервер берёт входящую строку, читает её побайтово: первый байт — тип фигуры, затем широта/долгота. Если широта > 90° или структура бинарного формата нарушена — парсинг прерывается, и данные даже не попадают на диск. <strong>Это прямая валидация на уровне байтов.</strong></p>
+  
+  <p>Аналогично работают <code>hierarchyid</code>, <code>datetimeoffset</code> (проверка смещения часового пояса) и XML со схемой — MSSQL проверяет каждый элемент на соответствие XSD.</p>
+
+  <!-- СХЕМА ЖИЗНЕННОГО ЦИКЛА (Mermaid) -->
+  <div class="mermaid-wrapper">
+    <div class="title">
+      <span>🔄 Жизненный цикл запроса с прямой валидацией в MSSQL</span>
+      <span class="badge">Relational Engine → Storage Engine</span>
+    </div>
+    <pre class="mermaid" style="text-align: center;">
+graph TD
+    User([Запрос: INSERT/UPDATE]) --> Parser[1. Синтаксический парсер]
+    
+    subgraph "Relational Engine (Обработка запроса)"
+        Parser --> Algebrizer["<b>2. Algebrizer & Binding</b><br/>Сопоставляет запрос с метаданными:<br/>существуют ли таблицы и верны ли типы данных."]
+        Algebrizer --> Optimizer["<b>3. Query Optimizer</b><br/>Строит план выполнения, вшивая в него<br/>логику проверок CHECK и Foreign Keys."]
+    end
+
+    subgraph "Storage Engine (Работа с памятью)"
+        Optimizer --> Latch["<b>4. Latch Lock</b><br/>Защелка в памяти: гарантирует, что<br/>пока идет валидация, байты никто не изменит."]
+        Latch --> TypeCheck["<b>5. Байтовый Парсинг</b><br/>Валидация на уровне байтов: корректна ли<br/>структура данных (напр. дата/время)."]
+        TypeCheck --> LogicCheck["<b>6. Constraint Engine</b><br/>Проверка бизнес-правил: больше ли цена нуля,<br/>уникален ли Email и т.д."]
+        
+        LogicCheck -- "Валидация OK" --> LogReserve["<b>7. Log Manager: WAL</b><br/>Гарантия атомарности: запись операции в лог<br/>перед изменением самой страницы."]
+        LogReserve --> DirtyPage["<b>8. Модификация страницы</b><br/>Данные меняются в RAM. Страница помечается<br/>как 'грязная' (отличается от диска)."]
+    end
+
+    subgraph "Фиксация (Синхронно)"
+        DirtyPage --> Commit["<b>9. COMMIT</b><br/>Сброс лога транзакций на диск.<br/>Данные теперь невозможно потерять."]
+        Commit --> Ack([Ответ пользователю: УСПЕХ])
+    end
+
+    subgraph "Фоновые процессы (Асинхронно)"
+        DirtyPage -.-> Checkpoint["<b>10. Checkpoint / Lazy Writer</b><br/>Фоновый перенос измененных страниц<br/>из памяти на физический диск."]
+        Checkpoint --> CalcChecksum["<b>11. Расчет Checksum</b><br/>Валидация физики: создание отпечатка<br/>страницы для защиты от повреждения железа."]
+        CalcChecksum --> Disk[(<b>12. Физический Диск</b><br/>Конечное хранилище валидных байтов.)]
+    end
+    
+    LogicCheck -- "ОШИБКА" --> Rollback["<b>ROLLBACK</b><br/>Отмена всех действий. База возвращается<br/>в состояние до начала запроса."]
+    </pre>
+    <p style="text-align:right; font-size:0.85rem; margin-top:0.5rem; opacity:0.75;">⬆️ Каждый этап — фильтр: синтаксис, метаданные, байты, логика, атомарность.</p>
+  </div>
+
+  <!-- Детали транзакционной валидации -->
+  <h2>🔐 Прямая валидация на уровне транзакций и страниц</h2>
+  <p>Валидация встроена в жизненный цикл транзакции — от предварительной проверки до физической записи на диск.</p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.8rem; margin:1.5rem 0;">
+    <div style="background:#f6faff; border-radius:18px; padding:1.2rem 1.5rem;">
+      <h4 style="margin-top:0; margin-bottom:0.8rem;">📋 Предварительная валидация (In-Flight)</h4>
+      <p>При вставке 1000 строк, если 500-я нарушает ограничение, транзакция прерывается немедленно. Экономия ресурсов.</p>
+    </div>
+    <div style="background:#f6faff; border-radius:18px; padding:1.2rem 1.5rem;">
+      <h4 style="margin-top:0; margin-bottom:0.8rem;">🔄 Теневые страницы (Versioning)</h4>
+      <p>Snapshot Isolation: при COMMIT проверяется, не изменились ли прочитанные данные. Если да — откат.</p>
+    </div>
+    <div style="background:#f6faff; border-radius:18px; padding:1.2rem 1.5rem;">
+      <h4 style="margin-top:0; margin-bottom:0.8rem;">📀 Transaction Hardening</h4>
+      <p>LSN и подтверждение от контроллера диска. Транзакция не считается завершённой, пока байты физически не записаны.</p>
+    </div>
+    <div style="background:#f6faff; border-radius:18px; padding:1.2rem 1.5rem;">
+      <h4 style="margin-top:0; margin-bottom:0.8rem;">🧮 Контрольная сумма страниц</h4>
+      <p>При чтении страницы (8 КБ) SQL Server пересчитывает контрольную сумму и сравнивает с заголовком. Ошибка 824 при несовпадении — защита от битых секторов.</p>
+    </div>
+  </div>
+
+  <h3>🧱 Алгебраизатор, оптимизатор и байтовый парсинг</h3>
+  <p>На максимальной глубине валидация — это многоуровневый конвейер:</p>
+  <ul>
+    <li><strong>Algebrizer & Binding</strong> — связывает имена объектов с метаданными, проверяет типы ещё до выполнения.</li>
+    <li><strong>Оптимизатор строит план</strong>, вшивая проверки CHECK и FK как предикаты.</li>
+    <li><strong>Latch (защелка)</strong> гарантирует, что во время проверки байты не изменятся другим потоком.</li>
+    <li><strong>Байтовый парсинг</strong> для типов вроде <code>datetimeoffset</code> — смещение не может быть +14:01, иначе ошибка.</li>
+    <li><strong>Constraint Engine</strong> выполняет логические проверки.</li>
+    <li><strong>WAL (Write-Ahead Log)</strong> — запись в лог до изменения страницы, гарантия отката.</li>
+  </ul>
+
+  <!-- Проверка контрольных сумм: физический уровень -->
+  <h2>🛡️ Контрольные суммы и защита от повреждения железа</h2>
+  <blockquote>
+    Когда SQL Server записывает страницу (8 КБ), он вычисляет контрольную сумму всех байтов и сохраняет её в заголовке. При чтении сумма пересчитывается — если хотя бы один бит «поплыл», сервер выдаёт ошибку 824. Это прямая валидация целостности на физическом уровне.
+  </blockquote>
+  <p>Включение опции <code>PAGE_VERIFY CHECKSUM</code> (по умолчанию) — последний рубеж обороны данных.</p>
+
+  <!-- ОСС и ER-диаграмма (упоминание) -->
+  <hr>
+  <h2>🗳️ ОСС с прямой валидацией — схема данных</h2>
+  <p>Как упоминалось в документе, архитектура подразумевает динамическую связь таблиц голосования с мастер-данными ЕГРН и ГИС ЖКХ. Ниже концептуальная ER-связь (упрощённо):</p>
+  <div style="background:#eef3f9; border-radius:18px; padding:1.5rem; font-family: monospace; font-size:1rem;">
+    <pre style="background:transparent; margin:0; overflow-x:auto;">
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
+│   ЕСИА (users)  │     │   Голосование (votes) │     │  ЕГРН (premises)│
+├─────────────────┤     ├──────────────────────┤     ├─────────────────┤
+│ user_id (PK)    │◄────│ user_id (FK)          │     │ cad_num (PK)    │
+│ full_name       │     │ cad_num (FK)          │────►│ owner_id        │
+│ snils / inn     │     │ vote_value            │     │ area_share      │
+└─────────────────┘     │ vote_hash             │     │ address         │
+                        │ timestamp (append-only)│     └─────────────────┘
+                        └──────────────────────┘
+    </pre>
+    <p style="margin-top:0.8rem; font-size:0.9rem;">Ссылочная целостность: голос существует только при подтверждённом праве собственности из ЕГРН.</p>
+  </div>
+
+  <!-- Итог и философия -->
+  <div class="footnote">
+    <h3 style="margin-top:0; color:#0a3a5a;">🔎 Философия недоверия — итог</h3>
+    <p>Прямая валидация в БД (особенно в MSSQL) — это не просто «галочка». Это многослойная защита: от синтаксиса до контрольной суммы на диске. Данные становятся «умными» — они сами знают, какими могут быть. ОСС с прямой валидацией превращает голосование в верифицируемый, защищённый от подделок процесс, опирающийся на государственные мастер-данные.</p>
+    <p style="margin-bottom:0;"><strong>Хотите расписать ER-диаграмму глубже или увидеть реализацию триггеров?</strong> — этот сайт можно дополнить интерактивными примерами.</p>
+  </div>
+  
+  <!-- Подпись -->
+  <div style="margin-top: 2.5rem; font-size:0.85rem; color:#4f6f8c; display:flex; justify-content: space-between; border-top: 1px solid #cbdae6; padding-top:1.5rem;">
+    <span>📘 Обучающий материал на основе документа «ОСС с прямой валидацией через призму БД»</span>
+    <span>⚙️ MSSQL · ACID · WAL · CHECKSUM</span>
+  </div>
+</div>
+
+<script>
+  // Инициализация Mermaid с поддержкой HTML-тегов и securityLevel='loose'
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      'primaryColor': '#e1f0fa',
+      'primaryBorderColor': '#1e6f9f',
+      'primaryTextColor': '#0b2b40',
+      'lineColor': '#2b6a95',
+      'secondaryColor': '#f3f9ff',
+      'tertiaryColor': '#ffffff',
+      'background': '#ffffff',
+      'mainBkg': '#e7f0fa',
+      'fontFamily': 'Inter, sans-serif',
+      'fontSize': '14px',
+    },
+    flowchart: {
+      useMaxWidth: true,
+      htmlLabels: true,
+      curve: 'basis',
+    },
+    securityLevel: 'loose',  // чтобы корректно отображать <b>, <br/>
+  });
+  // небольшая задержка для гарантии рендера
+  window.addEventListener('load', function() {
+    // дополнительно можно перерисовать, но обычно mermaid сам справляется
+  });
+</script>
+</body>
+</html>
